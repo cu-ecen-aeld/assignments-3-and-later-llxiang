@@ -11,7 +11,7 @@ int main(int argc, char *argv[]){
 	syslog(LOG_DEBUG,"start logging");
 	
 	if (argc < 3){
-		syslog(LOG_ERR,"The full path to a file or the text string is not specified argc:%d",argc);
+		syslog(LOG_ERR,"The full path to a file or the text string is not specified");
 		res = 1;
 		}
 	else{
