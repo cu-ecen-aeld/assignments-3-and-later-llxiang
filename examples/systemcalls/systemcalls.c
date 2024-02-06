@@ -1,4 +1,9 @@
 #include "systemcalls.h"
+#include <unistd.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 /**
  * @param cmd the command to execute with system()
@@ -16,7 +21,13 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
-
+	int ret;
+	ret = system(cmd);
+	if (ret == -1)
+	{
+		return false;
+	}
+	
     return true;
 }
 
@@ -47,7 +58,7 @@ bool do_exec(int count, ...)
     command[count] = NULL;
     // this line is to avoid a compile warning before your implementation is complete
     // and may be removed
-    command[count] = command[count];
+    //command[count] = command[count];
 
 /*
  * TODO:
@@ -58,9 +69,44 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
+	pid_t pid;
+	int ret=1;
+	int status;
+	
+	fflush(stdout);
+	pid = fork();
+
+	if (pid == -1)  //fork error
+	{
+		return false;
+	}
+	else if (pid == 0)  //child process
+	{
+		ret = execv(command[0],command);
+		if (ret == -1){
+			exit(EXIT_FAILURE);
+		}	
+	}
+	else  //parent process
+	{
+	       if (waitpid(pid, &status, 0) > 0) {
+		     
+		    if (WIFEXITED(status) && !WEXITSTATUS(status))
+		    {
+		    	printf("process is executed successfully\n");
+		    }
+		    else{
+		    	return false;
+		    }    
+		}
+		else {
+		printf("waitpid() failed\n");
+		return false;
+		}
+		
+	}
 
     va_end(args);
-
     return true;
 }
 
@@ -82,7 +128,7 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
     command[count] = NULL;
     // this line is to avoid a compile warning before your implementation is complete
     // and may be removed
-    command[count] = command[count];
+    //command[count] = command[count];
 
 
 /*
@@ -92,7 +138,67 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
-
+	int fd;
+	fd = open(outputfile, O_WRONLY|O_TRUNC|O_CREAT, 0644);
+	if (fd < 0) 
+	{ 
+		perror("open"); 
+		return false;
+	}
+	
+	pid_t pid;
+	int ret=1;
+	int status;
+	
+	fflush(stdout);
+	pid = fork();
+	
+	if (pid == -1) //fork error
+	{
+		perror("fork");
+		close(fd);
+		return false;
+	}
+	else if (pid == 0) //child process
+	{
+		if(dup2(fd,1) < 0) 
+		{
+			perror("dup2");
+			exit(EXIT_FAILURE);
+		}
+		ret = execv(command[0],command);
+		if (ret == -1)
+		{
+			perror("execv");
+			close(fd);
+			exit(EXIT_FAILURE);
+		}
+		close(fd);
+	}
+	else  //parent process
+	{
+	       if (waitpid(pid, &status, 0) > 0) {
+		     
+		    if (WIFEXITED(status) && !WEXITSTATUS(status))
+		    {
+		    	printf("process is executed successfully \n");
+		    }
+		    else{
+		    	perror("waitpid");
+		    	close(fd);
+		    	return false;
+		    }
+		           
+		}
+		else {
+			perror("waitpid");
+			close(fd);
+			return false;
+		}
+		close(fd);
+	}
+	
+    
     va_end(args);
 
     return true;
